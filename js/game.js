@@ -258,10 +258,12 @@ class Game {
         
         // 4. 检查吃子
         const newPos = player.pieces[pieceIndex];
+        let hasCaptured = false;
         
         if (newPos !== 999) {
             const capture = this.board.checkCapture(this.players, player.color, pieceIndex, newPos);
             if (capture) {
+                hasCaptured = true;
                 const victim = this.players.find(p => p.id === capture.victimPlayerId);
                 const victimPieceIdx = capture.victimPieceIndex;
                 const victimCurrentPos = victim.pieces[victimPieceIdx];
@@ -294,9 +296,13 @@ class Game {
             return;
         }
 
-        // 规则：掷出 6 奖励一回合
-        if (diceValue === 6) {
-            this.ui.log('掷出 6，奖励一回合！');
+        // 规则：掷出 6 或吃子奖励一回合
+        if (diceValue === 6 || hasCaptured) {
+            if (hasCaptured) {
+                this.ui.log('吃子奖励，再掷一次！');
+            } else {
+                this.ui.log('掷出 6，奖励一回合！');
+            }
             await Utils.sleep(1000);
             this.startTurn(); // 重新开始该玩家回合
         } else {
