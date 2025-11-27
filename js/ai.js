@@ -149,13 +149,18 @@ class AIController {
         this.lastDebugInfo.avgWinRate = avgPredicted;
         this.lastDebugInfo.diff = winRateDiff;
 
-        if (player.isBot) {
-            this.lastDebugInfo.trigger = 'Bot Random';
-            return Utils.randomInt(1, 6);
-        }
-
-        // 人类玩家逻辑
-        const influenceParam = winRateDiff + baseBalanceValue + 1.6;
+        // 统一逻辑：Bot 和 Human 都受 Sigmoid 影响
+        // 这样 Bot 的行为在监控里也会显示具体的 Sigmoid 组别，而不是简单的 "Bot Random"
+        // 同时也实现了 Bot 的动态难度调整
+        
+        // 基础影响参数
+        let influenceParam = winRateDiff + baseBalanceValue + 1.6;
+        
+        // 如果是 Bot，我们可以反向调整或者保持一致
+        // 保持一致意味着：Bot 胜率高时，diff > 0 -> influence 大 -> probA (1-5) 大 -> 容易掷出小点数
+        // 这符合"领先者受限"的逻辑，对 Human 也是一样。
+        // 所以直接复用逻辑即可。
+        
         this.lastDebugInfo.influence = influenceParam;
         
         // A 组合 (1-5) 概率

@@ -482,14 +482,13 @@ class UI {
             });
         }
 
-        if (info.isHuman) {
-            html += `------------------\n`;
-            html += `当前玩家胜率: ${(info.winRate * 100).toFixed(1)}%\n`;
-            html += `平均胜率: ${(info.avgWinRate * 100).toFixed(1)}%\n`;
-            html += `胜率差值: ${info.diff.toFixed(3)}\n`;
-            html += `影响因子: ${info.influence.toFixed(3)}\n`;
-            html += `A组概率(1-5): ${(info.probA * 100).toFixed(1)}%\n`;
-        }
+        // 无论是 Human 还是 Bot，都显示详细数据
+        html += `------------------\n`;
+        html += `当前玩家胜率: ${(info.winRate * 100).toFixed(1)}%\n`;
+        html += `平均胜率: ${(info.avgWinRate * 100).toFixed(1)}%\n`;
+        html += `胜率差值: ${info.diff.toFixed(3)}\n`;
+        html += `影响因子: ${info.influence.toFixed(3)}\n`;
+        html += `A组概率(1-5): ${(info.probA * 100).toFixed(1)}%\n`;
         
         // 创建新条目
         const entry = document.createElement('div');
