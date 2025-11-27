@@ -33,7 +33,7 @@
 
 1. **克隆项目**
    ```bash
-   git clone https://github.com/yourusername/ludo-battle.git
+   git clone https://github.com/ForceMind/ludo-battle.git
    ```
 
 2. **运行游戏**
