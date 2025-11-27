@@ -1,0 +1,201 @@
+:root {
+    --bg-color: #2c3e50;
+    --panel-bg: #34495e;
+    --text-color: #ecf0f1;
+    --accent-color: #e74c3c;
+    --board-bg: #fff;
+    --color-red: #e74c3c;
+    --color-green: #2ecc71;
+    --color-yellow: #f1c40f;
+    --color-blue: #3498db;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.container {
+    display: flex;
+    width: 95%;
+    max-width: 1200px;
+    height: 90vh;
+    gap: 20px;
+}
+
+.sidebar {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    height: 100%;
+    overflow: hidden;
+}
+
+.main-content {
+    flex: 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #22303f;
+    border-radius: 10px;
+    padding: 20px;
+    height: 100%;
+}
+
+.panel {
+    background-color: var(--panel-bg);
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    flex-shrink: 0;
+}
+
+/* Make specific panels expand */
+.left-sidebar .debug-panel,
+.right-sidebar .log-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex-shrink: 1;
+}
+
+.avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #95a5a6;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.user-avatar { background: var(--color-blue); border: 3px solid #fff; }
+.bot-avatar.red { background: var(--color-red); }
+.bot-avatar.green { background: var(--color-green); }
+.bot-avatar.yellow { background: var(--color-yellow); }
+
+.btn {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.2s;
+}
+
+.primary-btn {
+    background-color: var(--color-green);
+    color: white;
+}
+
+.primary-btn:hover { background-color: #27ae60; }
+.primary-btn:disabled { background-color: #7f8c8d; cursor: not-allowed; }
+
+.dice-container {
+    text-align: center;
+    margin-top: 20px;
+    padding: 20px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 10px;
+}
+
+.dice {
+    width: 60px;
+    height: 60px;
+    background: white;
+    color: black;
+    font-size: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto 15px;
+    border-radius: 10px;
+    box-shadow: 0 4px 0 #bdc3c7;
+    font-weight: bold;
+}
+
+.roll-btn {
+    background-color: var(--color-blue);
+    color: white;
+}
+
+.roll-btn:disabled {
+    background-color: #7f8c8d;
+    cursor: not-allowed;
+}
+
+.game-log {
+    flex: 1;
+    height: auto;
+    overflow-y: auto;
+    font-size: 12px;
+    color: #bdc3c7;
+    border-top: 1px solid #7f8c8d;
+    padding-top: 10px;
+}
+
+.game-log p { margin: 5px 0; }
+
+.debug-panel {
+    margin-top: 0; /* Removed margin-top as it's handled by gap */
+    background: #2c3e50;
+    border: 1px solid #7f8c8d;
+}
+
+.debug-info {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 11px;
+    color: #2ecc71;
+    white-space: pre-wrap;
+    flex: 1;
+    height: auto;
+    max-height: none;
+    overflow-y: auto;
+}
+
+.hidden { display: none !important; }
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--panel-bg);
+    padding: 30px;
+    border-radius: 10px;
+    text-align: center;
+    min-width: 300px;
+}
+
+/* Canvas Board */
+#ludo-board {
+    background-color: white;
+    border-radius: 5px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.active-player {
+    border: 2px solid #f1c40f;
+    transform: scale(1.05);
+}

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ludo Battle - AI Challenge</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎲</text></svg>">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar left-sidebar">
+            <div class="panel user-panel">
+                <h2>玩家信息</h2>
+                <div class="avatar user-avatar">YOU</div>
+                <p>余额: <span id="user-balance">500</span> 豆</p>
+                <p>胜率: <span id="user-winrate">0%</span></p>
+                <div class="stats">
+                    <small>胜: <span id="stats-wins">0</span> | 总: <span id="stats-total">0</span></small>
+                </div>
+            </div>
+            
+            <div class="panel control-panel">
+                <h3>游戏设置</h3>
+                <div class="form-group">
+                    <label for="bot-count">Bot 数量:</label>
+                    <select id="bot-count">
+                        <option value="1">1 个电脑</option>
+                        <option value="2">2 个电脑</option>
+                        <option value="3" selected>3 个电脑</option>
+                    </select>
+                </div>
+                <div class="cost-info">
+                    <p>门票: 100 豆</p>
+                    <p>奖池: <span id="pot-size">400</span> 豆</p>
+                </div>
+                <button id="start-btn" class="btn primary-btn">开始游戏 (-100豆)</button>
+                <p id="status-msg" class="status-msg">准备开始...</p>
+            </div>
+
+            <div id="dice-container" class="dice-container hidden">
+                <div id="dice" class="dice">?</div>
+                <button id="roll-btn" class="btn roll-btn" disabled>掷骰子</button>
+            </div>
+
+            <div class="panel debug-panel">
+                <h3>AI 决策监控</h3>
+                <div id="debug-info" class="debug-info">
+                    <p>等待数据...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="game-board-wrapper">
+                <canvas id="ludo-board" width="600" height="600"></canvas>
+                <!-- 棋子将作为 DOM 元素或 Canvas 绘制 -->
+            </div>
+        </div>
+
+        <div class="sidebar right-sidebar">
+            <div class="panel bot-panel" id="bot-panel-1">
+                <div class="avatar bot-avatar red">Bot 1</div>
+                <p>状态: <span class="bot-status">等待</span></p>
+            </div>
+            <div class="panel bot-panel" id="bot-panel-2">
+                <div class="avatar bot-avatar green">Bot 2</div>
+                <p>状态: <span class="bot-status">等待</span></p>
+            </div>
+            <div class="panel bot-panel" id="bot-panel-3">
+                <div class="avatar bot-avatar yellow">Bot 3</div>
+                <p>状态: <span class="bot-status">等待</span></p>
+            </div>
+            
+            <div class="panel log-panel">
+                <h3>对局日志</h3>
+                <div id="game-log" class="game-log"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框：游戏结束 -->
+    <div id="game-over-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 id="winner-title">游戏结束</h2>
+            <p id="winner-message"></p>
+            <p>获得奖金: <span id="winner-prize">0</span> 豆</p>
+            <button id="restart-btn" class="btn">再来一局</button>
+        </div>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/ludo.js"></script>
+    <script src="js/ai.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
