@@ -2,6 +2,8 @@ class AIController {
     constructor() {
         this.mode = 'BALANCED'; // SUPPORT, BALANCED, CHALLENGE
         this.lastDebugInfo = {};
+        this.consecutiveCaptures = 0; // 记录当前回合连续触发吃子干预的次数
+        this.lastPlayerId = -1; // 记录上一次行动的玩家ID
     }
 
     // 1. 玩家预测胜率计算
@@ -63,19 +65,35 @@ class AIController {
         const { players, currentPlayerId, board } = context;
         const player = players[currentPlayerId];
         
+        // 如果玩家切换了，重置连续吃子计数器
+        if (currentPlayerId !== this.lastPlayerId) {
+            this.consecutiveCaptures = 0;
+            this.lastPlayerId = currentPlayerId;
+        }
+
         // 预先计算所有人的胜率，用于显示
         const allWinRates = players.map(p => this.calculatePredictedWinRate(p));
+
+        // 计算胜率差值和基础平衡值
+        let totalPredicted = allWinRates.reduce((a, b) => a + b, 0);
+        const userPredicted = allWinRates[player.id];
+        const avgPredicted = totalPredicted / players.length;
+        const winRateDiff = userPredicted - avgPredicted;
+
+        const recentWinRate = UserAccount.getRecentWinRate();
+        const baseBalanceValue = recentWinRate - 0.5;
 
         this.lastDebugInfo = {
             player: player.name,
             isHuman: !player.isBot,
             trigger: 'Normal',
-            winRate: allWinRates[player.id],
+            winRate: userPredicted,
             allWinRates: allWinRates, // 存储所有人的胜率
-            avgWinRate: 0,
-            diff: 0,
+            avgWinRate: avgPredicted,
+            diff: winRateDiff,
             influence: 0,
             probA: 0,
+            captureProb: 0, // 新增：吃子干预概率
             roll: 0
         };
 
@@ -108,7 +126,8 @@ class AIController {
         // 5. 干预打人事件 (Capture Intervention)
         // ---------------------------------------------------------
         if (isHumanTurn) {
-            const captureRoll = this.checkCaptureIntervention(player, context);
+            // 传入计算好的胜率参数
+            const captureRoll = this.checkCaptureIntervention(player, context, winRateDiff, baseBalanceValue);
             if (captureRoll !== null) {
                 console.log("Trigger: Capture Intervention -> " + captureRoll);
                 this.lastDebugInfo.trigger = 'Capture Intervention';
@@ -120,46 +139,31 @@ class AIController {
         // ---------------------------------------------------------
         // 4. 正常逻辑 (Sigmoid Probability)
         // ---------------------------------------------------------
-        const roll = this.rollDiceSigmoid(player, players, allWinRates);
+        // 传入计算好的胜率参数
+        const roll = this.rollDiceSigmoid(player, players, allWinRates, winRateDiff, baseBalanceValue);
         this.lastDebugInfo.roll = roll;
         return roll;
     }
 
     // 4. Sigmoid 骰子逻辑
-    rollDiceSigmoid(player, players, preCalculatedRates) {
-        // 计算所有玩家的预测胜率 (如果没传就现算)
-        let predictedRates = preCalculatedRates;
-        if (!predictedRates) {
-            predictedRates = players.map(p => this.calculatePredictedWinRate(p));
+    rollDiceSigmoid(player, players, preCalculatedRates, winRateDiff, baseBalanceValue) {
+        // 如果参数未传入 (兼容旧调用)，则重新计算
+        if (winRateDiff === undefined) {
+             // ... (省略重新计算逻辑，假设现在都通过 rollDice 调用)
+             // 为防万一，简单处理
+             let predictedRates = preCalculatedRates || players.map(p => this.calculatePredictedWinRate(p));
+             let totalPredicted = predictedRates.reduce((a, b) => a + b, 0);
+             const userPredicted = predictedRates[player.id];
+             const avgPredicted = totalPredicted / players.length;
+             winRateDiff = userPredicted - avgPredicted;
+             const recentWinRate = UserAccount.getRecentWinRate();
+             baseBalanceValue = recentWinRate - 0.5;
         }
-        
-        let totalPredicted = predictedRates.reduce((a, b) => a + b, 0);
-
-        const userPredicted = predictedRates[player.id]; // 假设 id 对应索引
-        const avgPredicted = totalPredicted / players.length;
-
-        // 胜率差值
-        const winRateDiff = userPredicted - avgPredicted;
-
-        // 基础胜率平衡值
-        const recentWinRate = UserAccount.getRecentWinRate();
-        const baseBalanceValue = recentWinRate - 0.5;
-        
-        this.lastDebugInfo.winRate = userPredicted;
-        this.lastDebugInfo.avgWinRate = avgPredicted;
-        this.lastDebugInfo.diff = winRateDiff;
 
         // 统一逻辑：Bot 和 Human 都受 Sigmoid 影响
-        // 这样 Bot 的行为在监控里也会显示具体的 Sigmoid 组别，而不是简单的 "Bot Random"
-        // 同时也实现了 Bot 的动态难度调整
         
         // 基础影响参数
         let influenceParam = winRateDiff + baseBalanceValue + 1.6;
-        
-        // 如果是 Bot，我们可以反向调整或者保持一致
-        // 保持一致意味着：Bot 胜率高时，diff > 0 -> influence 大 -> probA (1-5) 大 -> 容易掷出小点数
-        // 这符合"领先者受限"的逻辑，对 Human 也是一样。
-        // 所以直接复用逻辑即可。
         
         this.lastDebugInfo.influence = influenceParam;
         
@@ -180,50 +184,54 @@ class AIController {
     }
 
     // 5-7. 打人干预逻辑
-    checkCaptureIntervention(player, context) {
-        // 触发概率 60%
-        if (Math.random() > 0.6) return null;
+    checkCaptureIntervention(player, context, winRateDiff, baseBalanceValue) {
+        // 动态计算触发概率
+        // 逻辑：胜率越高 (influence 越大)，获得帮助的概率越低
+        // 使用 Sigmoid 函数变体: P = Sigmoid(0.4 - influence)
+        
+        const influence = (winRateDiff || 0) + (baseBalanceValue || 0);
+        const param = 0.4 - influence;
+        let prob = 1 / (1 + Math.exp(-param));
+        
+        // 连续吃子衰减：每连续触发一次，概率减少 10%
+        if (this.consecutiveCaptures > 0) {
+            prob -= (0.1 * this.consecutiveCaptures);
+            if (prob < 0) prob = 0;
+        }
+
+        this.lastDebugInfo.captureProb = prob;
+
+        if (Math.random() > prob) return null;
 
         const { players, board } = context;
         
         // 寻找可行的吃子点数
         for (let dice = 1; dice <= 6; dice++) {
+            // ... (省略循环体)
             // 检查是否有棋子在路上
             for (let i = 0; i < 4; i++) {
                 const pos = player.pieces[i];
                 if (pos !== -1 && pos !== 999) {
-                    // 检查前方 6 步内是否有敌军
-                    // 这里简化：直接看 dice 是否能吃
-                    // 题目要求：前方 6 个距离内有...
-                    // 我们遍历 1-6，看哪个能吃
-                    
-                    // 模拟移动
                     if (player.isValidMove(i, dice)) {
                         const newPos = pos + dice;
                         const captures = board.checkCapture(players, player.color, i, newPos);
                         
                         if (captures && captures.length > 0) {
-                            // 只要能吃子，就进行评估。这里简化处理，只评估第一个被吃掉的棋子对胜率的影响
-                            // 或者，我们可以认为只要能吃子，就是极好的机会，直接返回 dice
-                            // 但为了符合"胜率变化"的逻辑，我们还是算一下
-                            
                             const capture = captures[0];
                             const victim = players.find(p => p.id === capture.victimPlayerId);
-                            // 检查是否在安全区 (checkCapture 已经处理了安全区不吃，所以这里 capture 存在意味着不在安全区)
                             
-                            // 6. 预测胜率变化
                             const oldRate = this.calculatePredictedWinRate(victim);
                             
-                            // 模拟被吃后的状态
                             const originalPos = victim.pieces[capture.victimPieceIndex];
-                            victim.pieces[capture.victimPieceIndex] = -1; // 回家
+                            victim.pieces[capture.victimPieceIndex] = -1; 
                             const newRate = this.calculatePredictedWinRate(victim);
-                            victim.pieces[capture.victimPieceIndex] = originalPos; // 恢复
+                            victim.pieces[capture.victimPieceIndex] = originalPos; 
                             
                             const diff = oldRate - newRate;
                             
-                            // 变化值变小范围在 30% 以内 (即下降不超过 0.3)
                             if (diff < 0.3) {
+                                // 成功触发干预
+                                this.consecutiveCaptures++;
                                 return dice;
                             }
                         }

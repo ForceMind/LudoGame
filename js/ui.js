@@ -543,6 +543,9 @@ class UI {
         html += `胜率差值: ${info.diff.toFixed(3)}\n`;
         html += `影响因子: ${info.influence.toFixed(3)}\n`;
         html += `A组概率(1-5): ${(info.probA * 100).toFixed(1)}%\n`;
+        if (info.captureProb) {
+            html += `吃子干预概率: ${(info.captureProb * 100).toFixed(1)}%\n`;
+        }
         
         // 创建新条目
         const entry = document.createElement('div');
