@@ -207,14 +207,17 @@ class UI {
     drawPieces(players, board) {
         const ctx = this.ctx;
         const cs = this.cellSize;
+        
+        const piecesToDraw = [];
 
-        // 先绘制所有棋子
+        // 1. 收集所有需要绘制的棋子信息
         players.forEach(p => {
             if (!p.isActive) return;
             p.pieces.forEach((pos, idx) => {
-                // 检查是否正在动画中，如果是，则跳过常规绘制
+                // 检查是否正在动画中
                 const animating = this.animatingPieces.find(ap => ap.player.id === p.id && ap.pieceIdx === idx);
                 if (animating) {
+                    // 动画中的棋子直接绘制，不参与重叠计算
                     this.drawPiece3D(animating.x, animating.y, p.color);
                     return;
                 }
@@ -226,7 +229,7 @@ class UI {
                     x = baseCoords.x;
                     y = baseCoords.y;
                 } else if (pos === 999) {
-                    // 完成 (简化：堆在中心)
+                    // 完成 (堆在中心)
                     x = 7.5; y = 7.5; 
                 } else {
                     // 在路径上
@@ -249,15 +252,60 @@ class UI {
                     }
                 }
 
-                // 处理重叠：如果有多个棋子在同一格，稍微偏移
-                // 这里简化处理，直接画
-                this.drawPiece3D(x, y, p.color);
+                piecesToDraw.push({ x, y, color: p.color, player: p, idx });
             });
         });
+
+        // 2. 按位置分组
+        const groups = {};
+        piecesToDraw.forEach(p => {
+            const key = `${p.x},${p.y}`;
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(p);
+        });
+
+        // 3. 绘制
+        for (let key in groups) {
+            const group = groups[key];
+            const count = group.length;
+            
+            if (count === 1) {
+                const p = group[0];
+                this.drawPiece3D(p.x, p.y, p.color);
+            } else {
+                // 处理重叠：多个棋子时，缩小一点，并偏移
+                const scale = count > 4 ? 0.6 : 0.75;
+                const offsetStep = 0.25;
+                
+                const offsets = this.getGroupOffsets(count, offsetStep);
+                
+                group.forEach((p, i) => {
+                    const off = offsets[i] || {x:0, y:0};
+                    this.drawPiece3D(p.x + off.x, p.y + off.y, p.color, scale);
+                });
+            }
+        }
+    }
+
+    getGroupOffsets(count, step) {
+        if (count === 2) return [{x: -step/2, y: 0}, {x: step/2, y: 0}];
+        if (count === 3) return [{x: 0, y: -step/2}, {x: -step/2, y: step/2}, {x: step/2, y: step/2}];
+        if (count === 4) return [{x: -step/2, y: -step/2}, {x: step/2, y: -step/2}, {x: -step/2, y: step/2}, {x: step/2, y: step/2}];
+        
+        // 更多棋子，围成圈
+        const res = [];
+        for(let i=0; i<count; i++) {
+            const angle = (Math.PI * 2 * i) / count;
+            res.push({
+                x: Math.cos(angle) * step * 0.8,
+                y: Math.sin(angle) * step * 0.8
+            });
+        }
+        return res;
     }
 
     // 绘制 3D 风格的棋子 (竖着的角度)
-    drawPiece3D(gridX, gridY, colorIdx) {
+    drawPiece3D(gridX, gridY, colorIdx, scale = 1) {
         const ctx = this.ctx;
         const cs = this.cellSize;
         
@@ -269,13 +317,13 @@ class UI {
         const baseColor = colors[colorIdx];
         
         // 尺寸参数
-        const baseWidth = cs * 0.6;
-        const baseHeight = cs * 0.2; // 椭圆高度
-        const bodyHeight = cs * 0.5;
-        const headRadius = cs * 0.2;
+        const baseWidth = cs * 0.6 * scale;
+        const baseHeight = cs * 0.2 * scale; // 椭圆高度
+        const bodyHeight = cs * 0.5 * scale;
+        const headRadius = cs * 0.2 * scale;
         
         // 垂直偏移，让棋子看起来站在格子上
-        const offsetY = cs * 0.1; 
+        const offsetY = cs * 0.1 * scale; 
         const baseY = cy + offsetY;
 
         // 1. 阴影 (Shadow)
@@ -290,7 +338,7 @@ class UI {
         ctx.fillStyle = this.darkenColor(baseColor, 20); // 底座深一点
         ctx.fill();
         ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1 * scale;
         ctx.stroke();
 
         // 3. 身体 (Body) - 梯形/圆柱
