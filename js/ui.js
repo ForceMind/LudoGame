@@ -229,13 +229,14 @@ class UI {
                     x = baseCoords.x;
                     y = baseCoords.y;
                 } else if (pos === 999) {
-                    // 完成 - 放在各自颜色的终点三角形内，避免所有人都堆在正中心
-                    // Blue(0): Bottom, Red(1): Left, Green(2): Top, Yellow(3): Right
-                    if (p.color === 0) { x = 7.5; y = 8.5; }      // Blue (Bottom)
-                    else if (p.color === 1) { x = 6.5; y = 7.5; } // Red (Left)
-                    else if (p.color === 2) { x = 7.5; y = 6.5; } // Green (Top)
-                    else if (p.color === 3) { x = 8.5; y = 7.5; } // Yellow (Right)
-                    else { x = 7.5; y = 7.5; }
+                    // 完成 - 放在各自颜色的终点三角形内
+                    // drawPiece3D 会自动 +0.5 居中，所以这里给整数坐标
+                    // Blue(0): Bottom (7, 8), Red(1): Left (6, 7), Green(2): Top (7, 6), Yellow(3): Right (8, 7)
+                    if (p.color === 0) { x = 7; y = 8; }      // Blue (Bottom)
+                    else if (p.color === 1) { x = 6; y = 7; } // Red (Left)
+                    else if (p.color === 2) { x = 7; y = 6; } // Green (Top)
+                    else if (p.color === 3) { x = 8; y = 7; } // Yellow (Right)
+                    else { x = 7; y = 7; }
                 } else {
                     // 在路径上
                     const globalPos = board.getGlobalPos(p.color, pos);
