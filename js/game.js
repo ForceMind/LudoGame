@@ -30,8 +30,111 @@ class Game {
         // 绑定 Canvas 点击事件 (用于玩家选择棋子)
         this.ui.canvas.addEventListener('click', (e) => this.handleBoardClick(e));
 
-        // 初始绘制空棋盘
+        // 尝试加载存档
+        if (this.loadGame()) {
+            this.ui.log('恢复未完成的游戏...');
+            this.resumeGame();
+        } else {
+            // 初始绘制空棋盘
+            this.ui.drawBoard();
+        }
+    }
+
+    saveGame() {
+        if (!this.isGameActive) {
+            localStorage.removeItem('ludo_game_state');
+            return;
+        }
+
+        const state = {
+            players: this.players.map(p => ({
+                id: p.id,
+                color: p.color,
+                isBot: p.isBot,
+                name: p.name,
+                pieces: p.pieces,
+                finishedPieces: p.finishedPieces,
+                isActive: p.isActive
+            })),
+            currentPlayerIndex: this.currentPlayerIndex,
+            isGameActive: this.isGameActive,
+            turnState: this.turnState,
+            currentDiceValue: this.currentDiceValue,
+            potSize: document.getElementById('pot-size').textContent
+        };
+        localStorage.setItem('ludo_game_state', JSON.stringify(state));
+    }
+
+    loadGame() {
+        const saved = localStorage.getItem('ludo_game_state');
+        if (!saved) return false;
+
+        try {
+            const state = JSON.parse(saved);
+            if (!state.isGameActive) return false;
+
+            this.players = state.players.map(data => {
+                const p = new Player(data.id, data.color, data.isBot, data.name);
+                p.pieces = data.pieces;
+                p.finishedPieces = data.finishedPieces;
+                p.isActive = data.isActive;
+                return p;
+            });
+
+            this.currentPlayerIndex = state.currentPlayerIndex;
+            this.isGameActive = state.isGameActive;
+            this.turnState = state.turnState;
+            this.currentDiceValue = state.currentDiceValue;
+            
+            document.getElementById('pot-size').textContent = state.potSize || '0';
+
+            // 恢复 UI 状态
+            document.querySelector('.control-panel').classList.add('hidden');
+            document.getElementById('dice-container').classList.remove('hidden');
+            
+            // 恢复 Bot 面板
+            const botCount = this.players.filter(p => p.isBot).length;
+            for(let i=1; i<=3; i++) {
+                const panel = document.getElementById(`bot-panel-${i}`);
+                if (i <= botCount) {
+                    panel.style.opacity = 1;
+                    panel.querySelector('.bot-status').textContent = '游戏中';
+                } else {
+                    panel.style.opacity = 0.5;
+                    panel.querySelector('.bot-status').textContent = '未激活';
+                }
+            }
+
+            return true;
+        } catch (e) {
+            console.error('Failed to load game', e);
+            return false;
+        }
+    }
+
+    async resumeGame() {
         this.ui.drawBoard();
+        this.ui.drawPieces(this.players, this.board);
+        
+        const player = this.players[this.currentPlayerIndex];
+        this.ui.log(`轮到 ${player.name} (${Utils.COLOR_NAMES[player.color]})`);
+
+        if (player.isBot) {
+            // 如果是 Bot，重新开始它的回合逻辑
+            this.startTurn();
+        } else {
+            // 人类玩家
+            if (this.turnState === 'waiting_move') {
+                // 已经掷骰子，等待移动
+                this.ui.updateDice(this.currentDiceValue);
+                document.getElementById('roll-btn').disabled = true;
+                this.ui.log(`已掷出 ${this.currentDiceValue}，请移动`);
+            } else {
+                // 还没掷骰子
+                this.turnState = 'waiting_roll';
+                document.getElementById('roll-btn').disabled = false;
+            }
+        }
     }
 
     updateUserStats() {
@@ -106,6 +209,9 @@ class Game {
     async startTurn() {
         if (!this.isGameActive) return;
 
+        // 保存游戏状态
+        this.saveGame();
+
         // 每回合开始前，更新 AI 模式 (实时监控局势)
         this.ai.updateMode(UserAccount.getWinRate(), this.players);
 
@@ -143,6 +249,10 @@ class Game {
         
         const diceValue = this.ai.rollDice(!player.isBot, context);
         this.currentDiceValue = diceValue;
+        
+        // 掷骰子后保存 (防止人类玩家刷新重掷)
+        this.saveGame();
+
         this.ui.updateDice(diceValue);
         this.ui.updateDebugInfo(this.ai.lastDebugInfo);
         this.ui.log(`${player.name} 掷出了 ${diceValue}`);
@@ -297,6 +407,9 @@ class Game {
 
         this.ui.drawBoard();
         this.ui.drawPieces(this.players, this.board);
+        
+        // 移动完成后保存
+        this.saveGame();
 
         // 检查胜利条件
         if (player.finishedPieces === 4) {
@@ -327,6 +440,8 @@ class Game {
 
     handleWin(winner) {
         this.isGameActive = false;
+        this.saveGame(); // 清除存档 (因为 isGameActive 为 false)
+
         const prize = 100 * this.players.length;
         
         if (!winner.isBot) {
