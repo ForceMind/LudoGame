@@ -229,8 +229,13 @@ class UI {
                     x = baseCoords.x;
                     y = baseCoords.y;
                 } else if (pos === 999) {
-                    // 完成 (堆在中心)
-                    x = 7.5; y = 7.5; 
+                    // 完成 - 放在各自颜色的终点三角形内，避免所有人都堆在正中心
+                    // Blue(0): Bottom, Red(1): Left, Green(2): Top, Yellow(3): Right
+                    if (p.color === 0) { x = 7.5; y = 8.25; }      // Blue (Bottom)
+                    else if (p.color === 1) { x = 6.75; y = 7.5; } // Red (Left)
+                    else if (p.color === 2) { x = 7.5; y = 6.75; } // Green (Top)
+                    else if (p.color === 3) { x = 8.25; y = 7.5; } // Yellow (Right)
+                    else { x = 7.5; y = 7.5; }
                 } else {
                     // 在路径上
                     const globalPos = board.getGlobalPos(p.color, pos);
