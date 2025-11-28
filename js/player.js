@@ -100,6 +100,12 @@ const UserAccount = {
             this.balance = data.balance !== undefined ? data.balance : 500;
             this.wins = data.wins !== undefined ? data.wins : 0;
             this.totalGames = data.totalGames !== undefined ? data.totalGames : 0;
+            
+            // 自动修复异常数据 (如总局数小于胜场数)
+            if (this.totalGames < this.wins) {
+                this.totalGames = this.wins;
+            }
+
             this.history = (data.history && data.history.length > 0) ? data.history : [];
         }
     },

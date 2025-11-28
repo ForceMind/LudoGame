@@ -444,17 +444,20 @@ class Game {
 
         const prize = 100 * this.players.length;
         
+        // 先增加总局数，确保 recordGame 保存时数据正确
+        UserAccount.totalGames++;
+
         if (!winner.isBot) {
             UserAccount.balance += prize;
             UserAccount.wins++;
-            UserAccount.recordGame(true); // 记录胜利
+            UserAccount.recordGame(true); // 记录胜利并保存
             this.ui.log('恭喜你赢了！');
         } else {
-            UserAccount.recordGame(false); // 记录失败
+            UserAccount.recordGame(false); // 记录失败并保存
             this.ui.log(`${winner.name} 赢了。`);
         }
         
-        UserAccount.totalGames++;
+        // UserAccount.totalGames++; // 已移动到上面
         // UserAccount.save(); // recordGame 内部已经 save 了
         this.updateUserStats();
         
