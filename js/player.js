@@ -89,18 +89,18 @@ class Player {
 // 玩家资金管理 (全局单例或静态管理)
 const UserAccount = {
     balance: 500,
-    wins: 0,
-    totalGames: 0,
-    history: [], // 存储最近 100 局结果: 1 赢, 0 输
+    wins: 1,
+    totalGames: 2,
+    history: [1, 0], // 存储最近 100 局结果: 1 赢, 0 输 (初始化为一胜一负，50%)
 
     load() {
         const saved = localStorage.getItem('ludo_user_data');
         if (saved) {
             const data = JSON.parse(saved);
-            this.balance = data.balance || 500;
-            this.wins = data.wins || 0;
-            this.totalGames = data.totalGames || 0;
-            this.history = data.history || [];
+            this.balance = data.balance !== undefined ? data.balance : 500;
+            this.wins = data.wins !== undefined ? data.wins : 1;
+            this.totalGames = data.totalGames !== undefined ? data.totalGames : 2;
+            this.history = (data.history && data.history.length > 0) ? data.history : [1, 0];
         }
     },
 
