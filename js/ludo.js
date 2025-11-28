@@ -38,18 +38,19 @@ class LudoBoard {
     }
 
     // 检查移动是否会吃子
-    // 返回: { captured: boolean, victimPlayerId: number, victimPieceIndex: number }
+    // 返回: Array of { victimPlayerId: number, victimPieceIndex: number }
     checkCapture(players, moverColor, moverPieceIndex, newRelativePos) {
         const newGlobalPos = this.getGlobalPos(moverColor, newRelativePos);
+        const capturedPieces = [];
 
         // 如果在基地、终点或直道，不会发生吃子
         if (newGlobalPos === -1 || newGlobalPos >= 100) {
-            return null;
+            return capturedPieces;
         }
 
         // 如果是安全格，不会发生吃子
         if (this.safeZones.includes(newGlobalPos)) {
-            return null;
+            return capturedPieces;
         }
 
         // 检查该位置是否有其他玩家的棋子
@@ -61,16 +62,15 @@ class LudoBoard {
                 const enemyGlobalPos = this.getGlobalPos(p.color, enemyPos);
 
                 if (enemyGlobalPos === newGlobalPos) {
-                    return {
-                        captured: true,
+                    capturedPieces.push({
                         victimPlayerId: p.id,
                         victimPieceIndex: i
-                    };
+                    });
                 }
             }
         }
 
-        return null;
+        return capturedPieces;
     }
     
     // 获取棋盘上某个位置的所有棋子（用于UI显示重叠）

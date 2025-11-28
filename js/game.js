@@ -262,29 +262,36 @@ class Game {
         let hasReachedHome = (newPos === 999); // 检查是否到达终点
         
         if (newPos !== 999) {
-            const capture = this.board.checkCapture(this.players, player.color, pieceIndex, newPos);
-            if (capture) {
+            const captures = this.board.checkCapture(this.players, player.color, pieceIndex, newPos);
+            if (captures && captures.length > 0) {
                 hasCaptured = true;
-                const victim = this.players.find(p => p.id === capture.victimPlayerId);
-                const victimPieceIdx = capture.victimPieceIndex;
-                const victimCurrentPos = victim.pieces[victimPieceIdx];
-
-                this.ui.log(`${player.name} 吃掉了 ${victim.name} 的棋子！`);
-
-                // 4.1 计算被吃棋子的退回路径
-                const returnPath = this.board.getReturnPath(victim.color, victimCurrentPos);
                 
-                // 4.2 播放被吃动画 (快速退回)
-                // 先不更新逻辑位置，等动画播完
-                await new Promise(resolve => {
-                    // 稍微快一点的动画？可以在 animatePieceMove 里加参数，或者复用
-                    // 这里复用，但路径长，可能会慢。
-                    // 可以在 UI 里判断如果是 returnPath (最后是 null)，加速
-                    this.ui.animatePieceMove(victim, victimPieceIdx, returnPath, this.board, this.players, resolve);
-                });
+                const animations = [];
 
-                // 4.3 更新被吃棋子逻辑位置
-                victim.pieces[victimPieceIdx] = -1; // 回基地
+                for (let capture of captures) {
+                    const victim = this.players.find(p => p.id === capture.victimPlayerId);
+                    const victimPieceIdx = capture.victimPieceIndex;
+                    const victimCurrentPos = victim.pieces[victimPieceIdx];
+
+                    this.ui.log(`${player.name} 吃掉了 ${victim.name} 的棋子！`);
+
+                    // 4.1 计算被吃棋子的退回路径
+                    const returnPath = this.board.getReturnPath(victim.color, victimCurrentPos);
+                    
+                    // 4.2 收集动画 Promise
+                    animations.push(new Promise(resolve => {
+                        this.ui.animatePieceMove(victim, victimPieceIdx, returnPath, this.board, this.players, resolve);
+                    }));
+                }
+
+                // 并行播放所有被吃动画
+                await Promise.all(animations);
+
+                // 4.3 更新所有被吃棋子逻辑位置
+                for (let capture of captures) {
+                    const victim = this.players.find(p => p.id === capture.victimPlayerId);
+                    victim.pieces[capture.victimPieceIndex] = -1; // 回基地
+                }
             }
         }
 

@@ -200,9 +200,14 @@ class AIController {
                     // 模拟移动
                     if (player.isValidMove(i, dice)) {
                         const newPos = pos + dice;
-                        const capture = board.checkCapture(players, player.color, i, newPos);
+                        const captures = board.checkCapture(players, player.color, i, newPos);
                         
-                        if (capture) {
+                        if (captures && captures.length > 0) {
+                            // 只要能吃子，就进行评估。这里简化处理，只评估第一个被吃掉的棋子对胜率的影响
+                            // 或者，我们可以认为只要能吃子，就是极好的机会，直接返回 dice
+                            // 但为了符合"胜率变化"的逻辑，我们还是算一下
+                            
+                            const capture = captures[0];
                             const victim = players.find(p => p.id === capture.victimPlayerId);
                             // 检查是否在安全区 (checkCapture 已经处理了安全区不吃，所以这里 capture 存在意味着不在安全区)
                             
@@ -273,8 +278,10 @@ class AIController {
             const newPos = currentPos === -1 ? 0 : currentPos + diceValue;
             
             // 吃子
-            const capture = board.checkCapture(players, player.color, pieceIdx, newPos);
-            if (capture) score += 100;
+            const captures = board.checkCapture(players, player.color, pieceIdx, newPos);
+            if (captures && captures.length > 0) {
+                score += 100 * captures.length; // 吃得越多分越高
+            }
 
             // 起飞
             if (currentPos === -1) score += 50;
