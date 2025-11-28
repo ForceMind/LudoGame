@@ -259,6 +259,7 @@ class Game {
         // 4. 检查吃子
         const newPos = player.pieces[pieceIndex];
         let hasCaptured = false;
+        let hasReachedHome = (newPos === 999); // 检查是否到达终点
         
         if (newPos !== 999) {
             const capture = this.board.checkCapture(this.players, player.color, pieceIndex, newPos);
@@ -296,9 +297,11 @@ class Game {
             return;
         }
 
-        // 规则：掷出 6 或吃子奖励一回合
-        if (diceValue === 6 || hasCaptured) {
-            if (hasCaptured) {
+        // 规则：掷出 6 或吃子 或 到达终点 奖励一回合
+        if (diceValue === 6 || hasCaptured || hasReachedHome) {
+            if (hasReachedHome) {
+                this.ui.log('到达终点，奖励一回合！');
+            } else if (hasCaptured) {
                 this.ui.log('吃子奖励，再掷一次！');
             } else {
                 this.ui.log('掷出 6，奖励一回合！');
