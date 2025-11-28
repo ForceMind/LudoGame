@@ -263,11 +263,14 @@ class Game {
         const movablePieces = player.getMovablePieces(diceValue);
 
         if (movablePieces.length === 0) {
+            this.ai.notifyNoMove(player.id); // 记录无法移动
             this.ui.log('无棋可走');
             await Utils.sleep(1000);
             this.nextTurn();
             return;
         }
+
+        this.ai.notifyMove(player.id); // 重置无法移动计数
 
         // 3. 选择棋子
         let selectedPieceIndex = -1;

@@ -4,6 +4,23 @@ class AIController {
         this.lastDebugInfo = {};
         this.consecutiveCaptures = 0; // 记录当前回合连续触发吃子干预的次数
         this.lastPlayerId = -1; // 记录上一次行动的玩家ID
+        
+        // 保底机制状态
+        this.noMoveCounts = {}; // playerId -> count
+        this.failsafeThresholds = {}; // playerId -> threshold (10-20)
+    }
+
+    notifyNoMove(playerId) {
+        if (this.noMoveCounts[playerId] === undefined) this.noMoveCounts[playerId] = 0;
+        if (!this.failsafeThresholds[playerId]) this.failsafeThresholds[playerId] = Utils.randomInt(10, 20);
+        
+        this.noMoveCounts[playerId]++;
+        console.log(`Player ${playerId} no move count: ${this.noMoveCounts[playerId]}/${this.failsafeThresholds[playerId]}`);
+    }
+
+    notifyMove(playerId) {
+        this.noMoveCounts[playerId] = 0;
+        this.failsafeThresholds[playerId] = Utils.randomInt(10, 20);
     }
 
     // 1. 玩家预测胜率计算
@@ -73,6 +90,29 @@ class AIController {
 
         // 预先计算所有人的胜率，用于显示
         const allWinRates = players.map(p => this.calculatePredictedWinRate(p));
+
+        // ---------------------------------------------------------
+        // 0. 保底机制 (Failsafe)
+        // ---------------------------------------------------------
+        // 如果玩家连续多次无法移动 (死局保护)
+        if (this.noMoveCounts[player.id] >= (this.failsafeThresholds[player.id] || 15)) {
+            const failsafeRoll = this.getFailsafeRoll(player);
+            if (failsafeRoll !== null) {
+                console.log("Trigger: Failsafe (Stuck Protection) -> " + failsafeRoll);
+                
+                // 填充 debug info
+                this.lastDebugInfo = {
+                    player: player.name,
+                    isHuman: !player.isBot,
+                    trigger: 'Failsafe (Stuck)',
+                    winRate: allWinRates[player.id],
+                    allWinRates: allWinRates,
+                    avgWinRate: 0, diff: 0, influence: 0, probA: 0, captureProb: 0,
+                    roll: failsafeRoll
+                };
+                return failsafeRoll;
+            }
+        }
 
         // 计算胜率差值和基础平衡值
         let totalPredicted = allWinRates.reduce((a, b) => a + b, 0);
@@ -266,6 +306,35 @@ class AIController {
         const group = useGroupA ? groupA : groupB;
         
         return group[Math.floor(Math.random() * group.length)];
+    }
+
+    // 获取保底点数
+    getFailsafeRoll(player) {
+        // 优先 1: 直接到达终点的点数
+        for (let i = 0; i < 4; i++) {
+            const pos = player.pieces[i];
+            if (pos !== -1 && pos !== 999) {
+                const dist = 56 - pos;
+                if (dist <= 6 && dist >= 1) {
+                    return dist;
+                }
+            }
+        }
+        
+        // 优先 2: 任何可以移动的点数 (打破僵局)
+        const validRolls = [];
+        for (let d = 1; d <= 6; d++) {
+            if (player.canMove(d)) {
+                validRolls.push(d);
+            }
+        }
+        
+        if (validRolls.length > 0) {
+            // 随机返回一个可行的点数
+            return validRolls[Utils.randomInt(0, validRolls.length - 1)];
+        }
+        
+        return null;
     }
 
     // AI 走子决策 (保持不变)
