@@ -17,14 +17,23 @@ class UI {
 
     resize() {
         const container = this.canvas.parentElement;
-        // Use a fixed size or responsive size, but keep aspect ratio
-        // For simplicity, let's use the canvas width/height from HTML or container
-        // But the container might be flexible.
-        // Let's just use the canvas attributes if set, or default to 600
         let size = 600;
+        
         if (container) {
-             size = Math.min(container.clientWidth, container.clientHeight);
-             if (size === 0) size = 600; // Fallback
+             // On mobile (column layout), height might be unconstrained, so rely on width.
+             // On desktop (row layout), we want to fit within the container's height too.
+             const w = container.clientWidth;
+             const h = container.clientHeight;
+             
+             if (window.innerWidth <= 768) {
+                 // Mobile: just use width, minus some padding
+                 size = w;
+             } else {
+                 // Desktop: fit in the box
+                 size = Math.min(w, h);
+             }
+             
+             if (size === 0) size = 600; 
         }
         
         // 设置 Canvas 物理尺寸
