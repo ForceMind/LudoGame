@@ -121,7 +121,14 @@ class AIController {
         const winRateDiff = userPredicted - avgPredicted;
 
         const recentWinRate = UserAccount.getRecentWinRate();
-        const baseBalanceValue = recentWinRate - 0.5;
+        let baseBalanceValue = recentWinRate - 0.5;
+
+        // 关键修改：如果是电脑，反转平衡值
+        // 玩家胜率高 (baseBalanceValue > 0) -> 玩家受限 (Influence +) -> 电脑获得增强 (Influence -)
+        // 玩家胜率低 (baseBalanceValue < 0) -> 玩家获助 (Influence -) -> 电脑受限 (Influence +)
+        if (!isHumanTurn) {
+            baseBalanceValue = -baseBalanceValue;
+        }
 
         this.lastDebugInfo = {
             player: player.name,
@@ -140,6 +147,7 @@ class AIController {
         // ---------------------------------------------------------
         // 8. 干预终点到达 (End Game Intervention)
         // ---------------------------------------------------------
+        // 仅对人类生效，保持最后冲刺的戏剧性，Bot 暂时不需要这种强干预
         if (isHumanTurn && player.finishedPieces === 3) {
             // 检查最后一个棋子距离是否 <= 14
             let lastPiecePos = -1;
@@ -165,7 +173,8 @@ class AIController {
         // ---------------------------------------------------------
         // 5. 干预打人事件 (Capture Intervention)
         // ---------------------------------------------------------
-        if (isHumanTurn) {
+        // 现在对 Bot 也生效，让 Bot 也能在关键时刻吃子
+        // if (isHumanTurn) { // 移除此限制
             // 传入计算好的胜率参数
             const captureRoll = this.checkCaptureIntervention(player, context, winRateDiff, baseBalanceValue);
             if (captureRoll !== null) {
@@ -174,7 +183,7 @@ class AIController {
                 this.lastDebugInfo.roll = captureRoll;
                 return captureRoll;
             }
-        }
+        // }
 
         // ---------------------------------------------------------
         // 4. 正常逻辑 (Sigmoid Probability)
