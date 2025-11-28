@@ -89,18 +89,18 @@ class Player {
 // 玩家资金管理 (全局单例或静态管理)
 const UserAccount = {
     balance: 500,
-    wins: 1,
-    totalGames: 2,
-    history: [1, 0], // 存储最近 100 局结果: 1 赢, 0 输 (初始化为一胜一负，50%)
+    wins: 0,
+    totalGames: 0,
+    history: [], // 存储最近 100 局结果: 1 赢, 0 输
 
     load() {
         const saved = localStorage.getItem('ludo_user_data');
         if (saved) {
             const data = JSON.parse(saved);
             this.balance = data.balance !== undefined ? data.balance : 500;
-            this.wins = data.wins !== undefined ? data.wins : 1;
-            this.totalGames = data.totalGames !== undefined ? data.totalGames : 2;
-            this.history = (data.history && data.history.length > 0) ? data.history : [1, 0];
+            this.wins = data.wins !== undefined ? data.wins : 0;
+            this.totalGames = data.totalGames !== undefined ? data.totalGames : 0;
+            this.history = (data.history && data.history.length > 0) ? data.history : [];
         }
     },
 
@@ -127,8 +127,11 @@ const UserAccount = {
     },
 
     getRecentWinRate() {
-        if (this.history.length === 0) return 0.5; // 默认 50%
-        const wins = this.history.reduce((a, b) => a + b, 0);
-        return wins / this.history.length;
+        // 使用拉普拉斯平滑 (Laplace Smoothing) 计算胜率
+        // 相当于预置了 1 胜 1 负，初始胜率为 50%
+        // 这样在数据量少时（如前几局），胜率不会剧烈波动（0% 或 100%），而是趋向于 50%
+        const currentWins = this.history.reduce((a, b) => a + b, 0);
+        const currentTotal = this.history.length;
+        return (currentWins + 1) / (currentTotal + 2);
     }
 };
