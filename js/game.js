@@ -51,8 +51,12 @@ class Game {
         if (this.timerInterval) clearInterval(this.timerInterval);
         this.timerInterval = setInterval(() => {
             if (this.isGameActive) {
-                this.ui.updateGameTime(this.gameStartTime);
+                // 传入有效开始时间 = 实际开始时间 + 总暂停时间
+                this.ui.updateGameTime(this.gameStartTime + this.totalPausedTime);
             }
+        }, 1000);
+    }
+
     handleVisibilityChange() {
         if (document.hidden) {
             if (this.isGameActive) {
@@ -251,9 +255,6 @@ class Game {
 
         this.startTimer();
         this.startTurn();
-    }
-
-    async startTurn() {
     }
 
     async startTurn() {
@@ -492,7 +493,6 @@ class Game {
     handleWin(winner) {
         this.isGameActive = false;
         if (this.timerInterval) clearInterval(this.timerInterval);
-        this.saveGame(); // 清除存档 (因为 isGameActive 为 false)
         this.saveGame(); // 清除存档 (因为 isGameActive 为 false)
 
         const prize = 100 * this.players.length;

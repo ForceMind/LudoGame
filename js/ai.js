@@ -244,12 +244,19 @@ class AIController {
         if (isGroupA) {
             this.lastDebugInfo.trigger = 'Sigmoid Group A (1-5)';
             // --- 加速机制：Group A 内部加权 ---
-            // 正常是 randomInt(1, 5)
-            // 我们希望 4, 5 出现的概率更高
-            // 简单加权：随机两次取最大值 (偏向大数)
-            const r1 = Utils.randomInt(1, 5);
-            const r2 = Utils.randomInt(1, 5);
-            return Math.max(r1, r2);
+            // 目标：偏向大数 (3,4,5)，但保留 1,2 的合理概率
+            // 策略：80% 概率出 {3,4,5}，20% 概率出 {1,2}
+            const isHighSubgroup = Math.random() < 0.8;
+            
+            if (isHighSubgroup) {
+                // {3, 4, 5}
+                const sub = [3, 4, 5];
+                return sub[Utils.randomInt(0, 2)];
+            } else {
+                // {1, 2}
+                const sub = [1, 2];
+                return sub[Utils.randomInt(0, 1)];
+            }
         } else {
             this.lastDebugInfo.trigger = 'Sigmoid Group B (6)';
             return 6;
