@@ -243,19 +243,34 @@ class AIController {
         let prob = 1 / (1 + Math.exp(-param));
 
         // --- 时长限制逻辑 ---
-        // 目标：限制游戏时长在 10 分钟左右
-        // < 3分钟: 0.3 (发育期，少吃子)
-        // 3-6分钟: 1.0 (正常对抗)
-        // > 6分钟: 0.2 (收官期，减少吃子，促进终局)
+        // 目标：限制游戏时长在 10 分钟左右，使用平滑过渡函数
+        // < 2分钟: 0.3 (发育期)
+        // 2-4分钟: 0.3 -> 1.0 (过渡到激战)
+        // 4-6分钟: 1.0 (激战期)
+        // 6-9分钟: 1.0 -> 0.2 (过渡到收官)
+        // > 9分钟: 0.2 (强制收官)
         
         const now = Date.now();
         const startTime = context.gameStartTime || now;
         const durationMinutes = (now - startTime) / 60000;
         
         let timeCoefficient = 1.0;
-        if (durationMinutes < 3) {
+        
+        if (durationMinutes < 2) {
             timeCoefficient = 0.3;
-        } else if (durationMinutes >= 6) {
+        } else if (durationMinutes < 4) {
+            // 2-4分钟: 0.3 -> 1.0
+            const progress = (durationMinutes - 2) / 2;
+            timeCoefficient = 0.3 + (0.7 * progress);
+        } else if (durationMinutes < 6) {
+            // 4-6分钟: 1.0
+            timeCoefficient = 1.0;
+        } else if (durationMinutes < 9) {
+            // 6-9分钟: 1.0 -> 0.2
+            const progress = (durationMinutes - 6) / 3;
+            timeCoefficient = 1.0 - (0.8 * progress);
+        } else {
+            // > 9分钟: 0.2
             timeCoefficient = 0.2;
         }
         

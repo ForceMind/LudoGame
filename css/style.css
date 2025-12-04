@@ -186,13 +186,27 @@ body {
     min-width: 300px;
 }
 
+.game-board-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 300px; /* Ensure minimum height */
+}
+
 /* Canvas Board */
 #ludo-board {
     background-color: white;
     border-radius: 5px;
     box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    /* Remove max-width/height constraints that might cause collapse if parent is small */
+    /* max-width: 100%; */
+    /* max-height: 100%; */
+    /* Instead, let JS control the size, but ensure it doesn't overflow */
     max-width: 100%;
     max-height: 100%;
+    object-fit: contain;
 }
 
 .active-player {

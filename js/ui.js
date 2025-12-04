@@ -19,23 +19,35 @@ class UI {
         const container = this.canvas.parentElement;
         let size = 600;
         
+        console.log('Resizing UI...');
+
         if (container) {
              // On mobile (column layout), height might be unconstrained, so rely on width.
              // On desktop (row layout), we want to fit within the container's height too.
              const w = container.clientWidth;
              const h = container.clientHeight;
              
+             console.log(`Container size: ${w}x${h}`);
+
              if (window.innerWidth <= 768) {
                  // Mobile: just use width, minus some padding
-                 size = w;
+                 size = w > 0 ? w : 600;
              } else {
                  // Desktop: fit in the box
-                 size = Math.min(w, h);
+                 if (w > 0 && h > 0) {
+                    size = Math.min(w, h);
+                 } else {
+                    // Fallback if container has no size yet
+                    size = 600;
+                 }
              }
              
-             if (size === 0) size = 600; 
+             // Ensure minimum size
+             if (size < 300) size = 300;
         }
         
+        console.log(`New Canvas size: ${size}`);
+
         // 设置 Canvas 物理尺寸
         this.canvas.width = size;
         this.canvas.height = size;
@@ -96,7 +108,7 @@ class UI {
         this.drawGrid(9, 6, 6, 3);
 
         // Draw Colored Home Paths
-        if (BOARD_COORDINATES && BOARD_COORDINATES.homes) {
+        if (typeof BOARD_COORDINATES !== 'undefined' && BOARD_COORDINATES.homes) {
             this.colorCells(BOARD_COORDINATES.homes[0], '#3498db'); // Blue
             this.colorCells(BOARD_COORDINATES.homes[1], '#e74c3c'); // Red
             this.colorCells(BOARD_COORDINATES.homes[2], '#2ecc71'); // Green
@@ -118,13 +130,15 @@ class UI {
         const safeZoneIndices = [0, 13, 26, 39, 8, 21, 34, 47];
         ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
         
-        safeZoneIndices.forEach(idx => {
-            const coord = BOARD_COORDINATES.global[idx];
-            if (coord) {
-                // Draw a star
-                this.drawStar(coord.x * cs + cs/2, coord.y * cs + cs/2, cs * 0.3, 5, cs * 0.15);
-            }
-        });
+        if (typeof BOARD_COORDINATES !== 'undefined' && BOARD_COORDINATES.global) {
+            safeZoneIndices.forEach(idx => {
+                const coord = BOARD_COORDINATES.global[idx];
+                if (coord) {
+                    // Draw a star
+                    this.drawStar(coord.x * cs + cs/2, coord.y * cs + cs/2, cs * 0.3, 5, cs * 0.15);
+                }
+            });
+        }
 
         // Draw Center Triangles
         ctx.beginPath(); ctx.moveTo(6*cs, 6*cs); ctx.lineTo(9*cs, 6*cs); ctx.lineTo(7.5*cs, 7.5*cs); ctx.fillStyle = '#2ecc71'; ctx.fill(); // Top (Green)
@@ -234,9 +248,14 @@ class UI {
                 let x, y;
                 if (pos === -1) {
                     // 在基地
-                    const baseCoords = BOARD_COORDINATES.bases[p.color][idx];
-                    x = baseCoords.x;
-                    y = baseCoords.y;
+                    // 安全检查
+                    if (typeof BOARD_COORDINATES !== 'undefined' && BOARD_COORDINATES.bases) {
+                        const baseCoords = BOARD_COORDINATES.bases[p.color][idx];
+                        x = baseCoords.x;
+                        y = baseCoords.y;
+                    } else {
+                        return;
+                    }
                 } else if (pos === 999) {
                     // 完成 - 放在各自颜色的终点三角形内
                     // drawPiece3D 会自动 +0.5 居中，所以这里给整数坐标
@@ -248,15 +267,21 @@ class UI {
                     else { x = 7; y = 7; }
                 } else {
                     // 在路径上
+                    // 安全检查：确保 BOARD_COORDINATES 存在
+                    if (typeof BOARD_COORDINATES === 'undefined') return;
+
                     const globalPos = board.getGlobalPos(p.color, pos);
                     let coord;
                     if (globalPos >= 100) {
-                        // Home stretch
                         const homeIdx = Math.floor((globalPos - 100) / 10);
                         const step = globalPos % 10;
-                        coord = BOARD_COORDINATES.homes[homeIdx][step];
+                        if (BOARD_COORDINATES.homes && BOARD_COORDINATES.homes[homeIdx]) {
+                            coord = BOARD_COORDINATES.homes[homeIdx][step];
+                        }
                     } else {
-                        coord = BOARD_COORDINATES.global[globalPos];
+                        if (BOARD_COORDINATES.global) {
+                            coord = BOARD_COORDINATES.global[globalPos];
+                        }
                     }
                     
                     if (coord) {

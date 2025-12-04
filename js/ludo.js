@@ -145,7 +145,7 @@ class LudoBoard {
 // 坐标映射表 (用于 Canvas 绘制)
 // 这是一个简化的映射，假设棋盘是 15x15 的网格
 // 坐标系: x (0-14), y (0-14)
-const BOARD_COORDINATES = {
+window.BOARD_COORDINATES = {
     // 全局路径 0-51 的坐标
     global: [
         {x: 6, y: 13}, {x: 6, y: 12}, {x: 6, y: 11}, {x: 6, y: 10}, {x: 6, y: 9}, {x: 5, y: 8}, // 0-5 (Blue start area up)
