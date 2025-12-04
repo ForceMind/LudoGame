@@ -15,6 +15,18 @@ class UI {
         window.addEventListener('resize', () => this.resize());
     }
 
+    updateGameTime(startTime) {
+        if (!startTime) return;
+        const now = Date.now();
+        const diff = Math.floor((now - startTime) / 1000);
+        
+        const mins = Math.floor(diff / 60).toString().padStart(2, '0');
+        const secs = (diff % 60).toString().padStart(2, '0');
+        
+        const el = document.getElementById('game-timer');
+        if (el) el.textContent = `${mins}:${secs}`;
+    }
+
     resize() {
         const container = this.canvas.parentElement;
         let size = 600;

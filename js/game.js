@@ -10,6 +10,9 @@ class Game {
         this.turnState = 'waiting'; // waiting, rolled, moving
         this.currentDiceValue = 0;
         this.gameStartTime = Date.now(); // 记录游戏开始时间
+        this.totalPausedTime = 0; // 累计暂停时间
+        this.lastPauseTime = 0;   // 上次暂停开始时间
+        this.timerInterval = null;
 
         this.init();
     }
@@ -19,6 +22,7 @@ class Game {
         this.updateUserStats();
 
         // 绑定事件
+        document.addEventListener('visibilitychange', () => this.handleVisibilityChange());
         document.getElementById('start-btn').addEventListener('click', () => this.startGame());
         document.getElementById('roll-btn').addEventListener('click', () => this.handleRollClick());
         document.getElementById('restart-btn').addEventListener('click', () => {
@@ -26,6 +30,7 @@ class Game {
             // 重置 UI 状态
             document.querySelector('.control-panel').classList.remove('hidden');
             document.getElementById('dice-container').classList.add('hidden');
+            if (this.timerInterval) clearInterval(this.timerInterval);
         });
         
         // 绑定 Canvas 点击事件 (用于玩家选择棋子)
@@ -34,10 +39,35 @@ class Game {
         // 尝试加载存档
         if (this.loadGame()) {
             this.ui.log('恢复未完成的游戏...');
+            this.startTimer();
             this.resumeGame();
         } else {
             // 初始绘制空棋盘
             this.ui.drawBoard();
+        }
+    }
+
+    startTimer() {
+        if (this.timerInterval) clearInterval(this.timerInterval);
+        this.timerInterval = setInterval(() => {
+            if (this.isGameActive) {
+                this.ui.updateGameTime(this.gameStartTime);
+            }
+    handleVisibilityChange() {
+        if (document.hidden) {
+            if (this.isGameActive) {
+                this.lastPauseTime = Date.now();
+            }
+        } else {
+            if (this.isGameActive && this.lastPauseTime > 0) {
+                const now = Date.now();
+                const pauseDuration = now - this.lastPauseTime;
+                this.totalPausedTime += pauseDuration;
+                this.lastPauseTime = 0;
+                
+                // 立即更新一次 UI，避免跳变
+                this.ui.updateGameTime(this.gameStartTime + this.totalPausedTime);
+            }
         }
     }
 
@@ -62,6 +92,8 @@ class Game {
             turnState: this.turnState,
             currentDiceValue: this.currentDiceValue,
             gameStartTime: this.gameStartTime,
+            totalPausedTime: this.totalPausedTime,
+            timestamp: Date.now(), // 记录存档时间
             potSize: document.getElementById('pot-size').textContent
         };
         localStorage.setItem('ludo_game_state', JSON.stringify(state));
@@ -88,6 +120,16 @@ class Game {
             this.currentDiceValue = state.currentDiceValue;
             this.gameStartTime = state.gameStartTime || Date.now();
             
+            // 恢复暂停时间，并加上“离线时间”
+            // 离线时间 = 现在 - 上次存档时间
+            // 这样可以确保重新打开网页时，时间不会突然增加
+            const lastSaveTime = state.timestamp || Date.now();
+            const offlineDuration = Date.now() - lastSaveTime;
+            this.totalPausedTime = (state.totalPausedTime || 0) + offlineDuration;
+            
+            document.getElementById('pot-size').textContent = state.potSize || '0';
+
+            // 恢复 UI 状态
             document.getElementById('pot-size').textContent = state.potSize || '0';
 
             // 恢复 UI 状态
@@ -201,11 +243,17 @@ class Game {
         this.isGameActive = true;
         this.currentPlayerIndex = 0;
         this.gameStartTime = Date.now(); // 重置开始时间
+        this.totalPausedTime = 0; // 重置暂停时间
+        this.lastPauseTime = 0;
         this.ui.log('游戏开始！');
         this.ui.drawBoard();
         this.ui.drawPieces(this.players, this.board);
 
+        this.startTimer();
         this.startTurn();
+    }
+
+    async startTurn() {
     }
 
     async startTurn() {
@@ -224,7 +272,7 @@ class Game {
         
         if (player.isBot) {
             document.getElementById('roll-btn').disabled = true;
-            await Utils.sleep(1000);
+            await Utils.sleep(600); // 加速：减少等待
             await this.performTurn(player);
         } else {
             document.getElementById('roll-btn').disabled = false;
@@ -245,7 +293,7 @@ class Game {
             players: this.players,
             currentPlayerId: this.currentPlayerIndex,
             board: this.board,
-            gameStartTime: this.gameStartTime
+            gameStartTime: this.gameStartTime + this.totalPausedTime // 传入有效开始时间
         };
         
         const diceValue = this.ai.rollDice(!player.isBot, context);
@@ -258,7 +306,7 @@ class Game {
         this.ui.updateDebugInfo(this.ai.lastDebugInfo);
         this.ui.log(`${player.name} 掷出了 ${diceValue}`);
         
-        await Utils.sleep(500);
+        await Utils.sleep(400); // 加速：减少等待
 
         // 2. 检查是否有棋子可走
         const movablePieces = player.getMovablePieces(diceValue);
@@ -266,7 +314,7 @@ class Game {
         if (movablePieces.length === 0) {
             this.ai.notifyNoMove(player.id); // 记录无法移动
             this.ui.log('无棋可走');
-            await Utils.sleep(1000);
+            await Utils.sleep(600); // 加速
             this.nextTurn();
             return;
         }
@@ -279,7 +327,7 @@ class Game {
         if (player.isBot) {
             // AI 决策
             selectedPieceIndex = this.ai.decideMove(player, diceValue, this.board, this.players);
-            await Utils.sleep(800);
+            await Utils.sleep(500); // 加速
         } else {
             // 玩家决策
             if (movablePieces.length === 1) {
@@ -441,9 +489,10 @@ class Game {
         this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
         this.startTurn();
     }
-
     handleWin(winner) {
         this.isGameActive = false;
+        if (this.timerInterval) clearInterval(this.timerInterval);
+        this.saveGame(); // 清除存档 (因为 isGameActive 为 false)
         this.saveGame(); // 清除存档 (因为 isGameActive 为 false)
 
         const prize = 100 * this.players.length;
