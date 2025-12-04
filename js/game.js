@@ -9,6 +9,7 @@ class Game {
         this.isGameActive = false;
         this.turnState = 'waiting'; // waiting, rolled, moving
         this.currentDiceValue = 0;
+        this.gameStartTime = Date.now(); // 记录游戏开始时间
 
         this.init();
     }
@@ -60,8 +61,8 @@ class Game {
             isGameActive: this.isGameActive,
             turnState: this.turnState,
             currentDiceValue: this.currentDiceValue,
-            potSize: document.getElementById('pot-size').textContent,
-            gameStartTime: this.gameStartTime // 保存开始时间
+            gameStartTime: this.gameStartTime,
+            potSize: document.getElementById('pot-size').textContent
         };
         localStorage.setItem('ludo_game_state', JSON.stringify(state));
     }
@@ -85,9 +86,8 @@ class Game {
             this.isGameActive = state.isGameActive;
             this.turnState = state.turnState;
             this.currentDiceValue = state.currentDiceValue;
-            this.gameStartTime = state.gameStartTime || Date.now(); // 恢复开始时间，如果没有则重置
+            this.gameStartTime = state.gameStartTime || Date.now();
             
-            document.getElementById('pot-size').textContent = state.potSize || '0';
             document.getElementById('pot-size').textContent = state.potSize || '0';
 
             // 恢复 UI 状态
@@ -198,10 +198,9 @@ class Game {
                 panel.querySelector('.bot-status').textContent = '未激活';
             }
         }
-
         this.isGameActive = true;
         this.currentPlayerIndex = 0;
-        this.gameStartTime = Date.now(); // 记录游戏开始时间
+        this.gameStartTime = Date.now(); // 重置开始时间
         this.ui.log('游戏开始！');
         this.ui.drawBoard();
         this.ui.drawPieces(this.players, this.board);
@@ -239,17 +238,15 @@ class Game {
         document.getElementById('roll-btn').disabled = true;
         const player = this.players[this.currentPlayerIndex];
         await this.performTurn(player);
+    }
+
     async performTurn(player) {
-        // 1. 掷骰子
-        // 传入上下文供 AI 作弊
         const context = {
             players: this.players,
             currentPlayerId: this.currentPlayerIndex,
             board: this.board,
-            gameStartTime: this.gameStartTime // 传入游戏开始时间
+            gameStartTime: this.gameStartTime
         };
-        
-        const diceValue = this.ai.rollDice(!player.isBot, context);
         
         const diceValue = this.ai.rollDice(!player.isBot, context);
         this.currentDiceValue = diceValue;
