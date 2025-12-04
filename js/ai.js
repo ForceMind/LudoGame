@@ -241,6 +241,26 @@ class AIController {
         const influence = (winRateDiff || 0) + (baseBalanceValue || 0);
         const param = 0.4 - influence;
         let prob = 1 / (1 + Math.exp(-param));
+
+        // --- 时长限制逻辑 ---
+        // 目标：限制游戏时长在 10 分钟左右
+        // < 3分钟: 0.3 (发育期，少吃子)
+        // 3-6分钟: 1.0 (正常对抗)
+        // > 6分钟: 0.2 (收官期，减少吃子，促进终局)
+        
+        const now = Date.now();
+        const startTime = context.gameStartTime || now;
+        const durationMinutes = (now - startTime) / 60000;
+        
+        let timeCoefficient = 1.0;
+        if (durationMinutes < 3) {
+            timeCoefficient = 0.3;
+        } else if (durationMinutes >= 6) {
+            timeCoefficient = 0.2;
+        }
+        
+        prob = prob * timeCoefficient;
+        // -------------------
         
         // 连续吃子衰减：每连续触发一次，概率减少 10%
         if (this.consecutiveCaptures > 0) {
