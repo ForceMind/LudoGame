@@ -285,7 +285,10 @@ class AIController {
 
         this.lastDebugInfo.captureProb = prob;
 
-        if (Math.random() > prob) return null;
+        if (Math.random() > prob) {
+            this.lastDebugInfo.interventionSkipped = true;
+            return null;
+        }
 
         const { players, board } = context;
         
