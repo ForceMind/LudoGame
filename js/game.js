@@ -315,23 +315,34 @@ class Game {
             let px, py;
             
             if (pos === -1) {
-                const base = BOARD_COORDINATES.bases[player.color][idx];
-                px = base.x; py = base.y;
+                if (BOARD_COORDINATES && BOARD_COORDINATES.bases) {
+                    const base = BOARD_COORDINATES.bases[player.color][idx];
+                    px = base.x; py = base.y;
+                }
             } else {
                 const globalPos = this.board.getGlobalPos(player.color, pos);
                 let coord;
-                if (globalPos >= 100) {
-                    const homeIdx = Math.floor((globalPos - 100) / 10);
-                    const step = globalPos % 10;
-                    coord = BOARD_COORDINATES.homes[homeIdx][step];
-                } else {
-                    coord = BOARD_COORDINATES.global[globalPos];
+                if (BOARD_COORDINATES) {
+                    if (globalPos >= 100) {
+                        const homeIdx = Math.floor((globalPos - 100) / 10);
+                        const step = globalPos % 10;
+                        if (BOARD_COORDINATES.homes) {
+                            coord = BOARD_COORDINATES.homes[homeIdx][step];
+                        }
+                    } else {
+                        if (BOARD_COORDINATES.global) {
+                            coord = BOARD_COORDINATES.global[globalPos];
+                        }
+                    }
                 }
-                px = coord.x; py = coord.y;
+                
+                if (coord) {
+                    px = coord.x; py = coord.y;
+                }
             }
 
             // 检查点击是否在格子范围内
-            if (x > px*cs && x < (px+1)*cs && y > py*cs && y < (py+1)*cs) {
+            if (px !== undefined && py !== undefined && x > px*cs && x < (px+1)*cs && y > py*cs && y < (py+1)*cs) {
                 this.turnState = 'moving';
                 await this.executeMove(player, idx, this.currentDiceValue);
                 return;
