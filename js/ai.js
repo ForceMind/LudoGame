@@ -189,7 +189,22 @@ class AIController {
         // 4. 正常逻辑 (Sigmoid Probability)
         // ---------------------------------------------------------
         // 传入计算好的胜率参数
-        const roll = this.rollDiceSigmoid(player, players, allWinRates, winRateDiff, baseBalanceValue);
+        let roll = this.rollDiceSigmoid(player, players, allWinRates, winRateDiff, baseBalanceValue);
+        
+        // ---------------------------------------------------------
+        // 9. 防御性干预 (Anti-Capture Intervention)
+        // ---------------------------------------------------------
+        // 如果当前随机出的点数会导致“受保护玩家”被吃，尝试重掷
+        if (this.checkAntiCaptureIntervention(player, roll, context)) {
+            console.log("Trigger: Anti-Capture Intervention (Protecting Victim)");
+            this.lastDebugInfo.trigger = 'Anti-Capture Intervention';
+            // 尝试获取一个安全点数
+            const safeRoll = this.getSafeRoll(player, context);
+            if (safeRoll !== null) {
+                roll = safeRoll;
+            }
+        }
+
         this.lastDebugInfo.roll = roll;
         return roll;
     }
@@ -230,6 +245,10 @@ class AIController {
         if (piecesInBase >= 3) {
             // 还有很多棋子没出来，降低 influenceParam (让 probA 变小，probB(6) 变大)
             influenceParam -= 0.5; 
+        } else if (piecesInBase >= 2) {
+            // 修正：如果玩家有 >= 2 个棋子在基地，大幅增加出 6 概率，防止卡死太久
+            // 这是一个强力救援机制，避免玩家沮丧
+            influenceParam -= 0.8;
         }
 
         this.lastDebugInfo.influence = influenceParam;
@@ -273,35 +292,33 @@ class AIController {
         const param = 0.4 - influence;
         let prob = 1 / (1 + Math.exp(-param));
 
-        // --- 时长限制逻辑 ---
-        // 目标：限制游戏时长在 10 分钟左右，使用平滑过渡函数
-        // < 2分钟: 0.3 (发育期)
-        // 2-4分钟: 0.3 -> 1.0 (过渡到激战)
-        // 4-6分钟: 1.0 (激战期)
-        // 6-9分钟: 1.0 -> 0.2 (过渡到收官)
-        // > 9分钟: 0.2 (强制收官)
+        // --- 时长限制逻辑 (改为回合数控制) ---
+        // 目标：限制游戏节奏
+        // < 20 回合: 0.3 (发育期)
+        // 20-40 回合: 0.3 -> 1.0 (过渡到激战)
+        // 40-80 回合: 1.0 (激战期)
+        // 80-120 回合: 1.0 -> 0.2 (过渡到收官)
+        // > 120 回合: 0.2 (强制收官)
         
-        const now = Date.now();
-        const startTime = context.gameStartTime || now;
-        const durationMinutes = (now - startTime) / 60000;
+        const turnCount = context.turnCount || 0;
         
         let timeCoefficient = 1.0;
         
-        if (durationMinutes < 2) {
+        if (turnCount < 20) {
             timeCoefficient = 0.3;
-        } else if (durationMinutes < 4) {
-            // 2-4分钟: 0.3 -> 1.0
-            const progress = (durationMinutes - 2) / 2;
+        } else if (turnCount < 40) {
+            // 20-40: 0.3 -> 1.0
+            const progress = (turnCount - 20) / 20;
             timeCoefficient = 0.3 + (0.7 * progress);
-        } else if (durationMinutes < 6) {
-            // 4-6分钟: 1.0
+        } else if (turnCount < 80) {
+            // 40-80: 1.0
             timeCoefficient = 1.0;
-        } else if (durationMinutes < 9) {
-            // 6-9分钟: 1.0 -> 0.2
-            const progress = (durationMinutes - 6) / 3;
+        } else if (turnCount < 120) {
+            // 80-120: 1.0 -> 0.2
+            const progress = (turnCount - 80) / 40;
             timeCoefficient = 1.0 - (0.8 * progress);
         } else {
-            // > 9分钟: 0.2
+            // > 120: 0.2
             timeCoefficient = 0.2;
         }
         
@@ -357,6 +374,77 @@ class AIController {
                 }
             }
         }
+        return null;
+    }
+
+    // 9. 防御性干预检测
+    checkAntiCaptureIntervention(player, currentRoll, context) {
+        const { players, board, turnCount } = context;
+        
+        // 检查当前点数是否会导致吃子
+        // 遍历该玩家所有棋子
+        for (let i = 0; i < 4; i++) {
+            const pos = player.pieces[i];
+            if (pos !== -1 && pos !== 999) {
+                if (player.isValidMove(i, currentRoll)) {
+                    const newPos = pos + currentRoll;
+                    const captures = board.checkCapture(players, player.color, i, newPos);
+                    
+                    if (captures && captures.length > 0) {
+                        const capture = captures[0];
+                        const victim = players.find(p => p.id === capture.victimPlayerId);
+                        
+                        // 计算受害者的胜率情况
+                        const allWinRates = players.map(p => this.calculatePredictedWinRate(p));
+                        const totalPredicted = allWinRates.reduce((a, b) => a + b, 0);
+                        const avgPredicted = totalPredicted / players.length;
+                        const victimWinRate = allWinRates[victim.id];
+                        const victimDiff = victimWinRate - avgPredicted;
+                        
+                        // 1. 弱势保护：如果受害者处于劣势 (Diff < -0.05)，则触发保护机制
+                        if (victimDiff < -0.05) {
+                            return true; 
+                        }
+
+                        // 2. 终局加速保护：如果游戏进入后期 (Turn > 60)，且受害者即将获胜，且其历史表现不过分
+                        // 目的：加快游戏结束，让领先者赶紧赢
+                        if (turnCount > 60) {
+                            // 检查受害者是否接近胜利 (例如有 >= 2 个棋子已完成，或者进度分很高)
+                            // 这里简单判断：如果 victimDiff > 0 (处于优势) 且不是遥遥领先 (Diff < 0.4)
+                            // 或者 finishedPieces >= 2
+                            if (victim.finishedPieces >= 2 || (victimDiff > 0 && victimDiff < 0.4)) {
+                                // 新增：检查最近胜率
+                                // 如果受害者是人类且最近胜率过高 (> 60%)，则不予保护，让他凭实力赢
+                                if (!victim.isBot) {
+                                    const recentRate = UserAccount.getRecentWinRate();
+                                    if (recentRate > 0.6) {
+                                        return false;
+                                    }
+                                }
+                                
+                                console.log("Trigger: Endgame Protection (Letting Winner Win)");
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // 获取安全点数 (尝试寻找一个不吃受保护玩家的点数)
+    getSafeRoll(player, context) {
+        const candidates = [1, 2, 3, 4, 5, 6];
+        // 打乱数组
+        Utils.shuffleArray(candidates);
+        
+        for (let roll of candidates) {
+            if (!this.checkAntiCaptureIntervention(player, roll, context)) {
+                return roll;
+            }
+        }
+        // 如果所有点数都会导致吃受保护的人（极罕见），则只能返回 null (放弃干预)
         return null;
     }
 

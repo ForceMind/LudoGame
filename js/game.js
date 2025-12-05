@@ -13,6 +13,7 @@ class Game {
         this.totalPausedTime = 0; // 累计暂停时间
         this.lastPauseTime = 0;   // 上次暂停开始时间
         this.timerInterval = null;
+        this.turnCount = 0; // 记录总回合数 (steps)
 
         this.init();
     }
@@ -97,6 +98,7 @@ class Game {
             currentDiceValue: this.currentDiceValue,
             gameStartTime: this.gameStartTime,
             totalPausedTime: this.totalPausedTime,
+            turnCount: this.turnCount,
             timestamp: Date.now(), // 记录存档时间
             potSize: document.getElementById('pot-size').textContent
         };
@@ -123,6 +125,7 @@ class Game {
             this.turnState = state.turnState;
             this.currentDiceValue = state.currentDiceValue;
             this.gameStartTime = state.gameStartTime || Date.now();
+            this.turnCount = state.turnCount || 0;
             
             // 恢复暂停时间，并加上“离线时间”
             // 离线时间 = 现在 - 上次存档时间
@@ -249,6 +252,7 @@ class Game {
         this.gameStartTime = Date.now(); // 重置开始时间
         this.totalPausedTime = 0; // 重置暂停时间
         this.lastPauseTime = 0;
+        this.turnCount = 0;
         this.ui.log('游戏开始！');
         this.ui.drawBoard();
         this.ui.drawPieces(this.players, this.board);
@@ -259,6 +263,8 @@ class Game {
 
     async startTurn() {
         if (!this.isGameActive) return;
+
+        this.turnCount++; // 增加回合计数
 
         // 保存游戏状态
         this.saveGame();
@@ -294,7 +300,8 @@ class Game {
             players: this.players,
             currentPlayerId: this.currentPlayerIndex,
             board: this.board,
-            gameStartTime: this.gameStartTime + this.totalPausedTime // 传入有效开始时间
+            gameStartTime: this.gameStartTime + this.totalPausedTime, // 传入有效开始时间
+            turnCount: this.turnCount
         };
         
         const diceValue = this.ai.rollDice(!player.isBot, context);

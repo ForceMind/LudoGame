@@ -18,6 +18,15 @@ const Utils = {
     },
 
     COLOR_NAMES: ['Blue', 'Red', 'Green', 'Yellow'],
+
+    // 数组洗牌 (Fisher-Yates Shuffle)
+    shuffleArray: (array) => {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    },
     
     // 坐标转换等辅助函数后续根据棋盘逻辑添加
 };
